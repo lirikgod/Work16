@@ -5,6 +5,10 @@
 
 List* InitList() {
     List* list = malloc(sizeof(List));
+    if (!list) {
+        perror("Failed to allocate memory for List");
+        return NULL;
+    }
     list->head = NULL;
     list->tail = NULL;
     list->size = 0;
@@ -24,6 +28,10 @@ void* Append(void* list, void* student) {
     List* l = (List*)list;
     Student* s = (Student*)student;
     Node* newNode = malloc(sizeof(Node));
+    if (!newNode) {
+        perror("Failed to allocate memory for Node");
+        return NULL;
+    }
     newNode->student = s;
     newNode->next = NULL;
 
@@ -117,8 +125,11 @@ void SaveListToFile(void* list, const char* filename) {
         fprintf(file, "%d,%s,%s,%s,%s,%d,%d,%d\n", s->age, s->name, s->surname, s->gender, s->group, s->mathGrade, s->physicGrade, s->chemistryGrade);
         current = current->next;
     }
-    fclose(file);
-    printf("Data successfully saved to %s\n", filename);
+    if (fclose(file) != 0) {
+        perror("Failed to close file after writing");
+    } else {
+        printf("Data successfully saved to %s\n", filename);
+    }
 }
 
 void LoadListFromFile(void* list, const char* filename) {
@@ -134,13 +145,23 @@ void LoadListFromFile(void* list, const char* filename) {
         int age, mathGrade, physicGrade, chemistryGrade;
         char name[50], surname[50], gender[10], group[50];
 
-        sscanf(line, "%d,%49[^,],%49[^,],%9[^,],%49[^,],%d,%d,%d", &age, name, surname, gender, group, &mathGrade, &physicGrade, &chemistryGrade);
+        if (sscanf(line, "%d,%49[^,],%49[^,],%9[^,],%49[^,],%d,%d,%d", &age, name, surname, gender, group, &mathGrade, &physicGrade, &chemistryGrade) != 8) {
+            fprintf(stderr, "Failed to parse line: %s\n", line);
+            continue;
+        }
 
         Student* student = InitStudent(age, strdup(name), strdup(surname), strdup(gender), strdup(group), mathGrade, physicGrade, chemistryGrade);
+        if (!student) {
+            fprintf(stderr, "Failed to allocate memory for Student\n");
+            continue;
+        }
         l->append(l, student);
     }
-    fclose(file);
-    printf("Data successfully loaded from %s\n", filename);
+    if (fclose(file) != 0) {
+        perror("Failed to close file after reading");
+    } else {
+        printf("Data successfully loaded from %s\n", filename);
+    }
 }
 
 void SaveListToBinaryFile(void* list, const char* filename) {
@@ -154,18 +175,25 @@ void SaveListToBinaryFile(void* list, const char* filename) {
     Node* current = l->head;
     while (current != NULL) {
         Student* s = current->student;
-        fwrite(&(s->age), sizeof(int), 1, file);
-        fwrite(s->name, sizeof(char), 50, file);
-        fwrite(s->surname, sizeof(char), 50, file);
-        fwrite(s->gender, sizeof(char), 10, file);
-        fwrite(s->group, sizeof(char), 50, file);
-        fwrite(&(s->mathGrade), sizeof(int), 1, file);
-        fwrite(&(s->physicGrade), sizeof(int), 1, file);
-        fwrite(&(s->chemistryGrade), sizeof(int), 1, file);
+        if (fwrite(&(s->age), sizeof(int), 1, file) != 1 ||
+            fwrite(s->name, sizeof(char), 50, file) != 50 ||
+            fwrite(s->surname, sizeof(char), 50, file) != 50 ||
+            fwrite(s->gender, sizeof(char), 10, file) != 10 ||
+            fwrite(s->group, sizeof(char), 50, file) != 50 ||
+            fwrite(&(s->mathGrade), sizeof(int), 1, file) != 1 ||
+            fwrite(&(s->physicGrade), sizeof(int), 1, file) != 1 ||
+            fwrite(&(s->chemistryGrade), sizeof(int), 1, file) != 1) {
+            perror("Failed to write data to binary file");
+            fclose(file);
+            return;
+        }
         current = current->next;
     }
-    fclose(file);
-    printf("Data successfully saved to %s\n", filename);
+    if (fclose(file) != 0) {
+        perror("Failed to close file after writing");
+    } else {
+        printf("Data successfully saved to %s\n", filename);
+    }
 }
 
 void LoadListFromBinaryFile(void* list, const char* filename) {
@@ -180,20 +208,30 @@ void LoadListFromBinaryFile(void* list, const char* filename) {
         int age, mathGrade, physicGrade, chemistryGrade;
         char name[50], surname[50], gender[10], group[50];
 
-        fread(&age, sizeof(int), 1, file);
-        fread(name, sizeof(char), 50, file);
-        fread(surname, sizeof(char), 50, file);
-        fread(gender, sizeof(char), 10, file);
-        fread(group, sizeof(char), 50, file);
-        fread(&mathGrade, sizeof(int), 1, file);
-        fread(&physicGrade, sizeof(int), 1, file);
-        fread(&chemistryGrade, sizeof(int), 1, file);
-
-        if (feof(file)) break;
+        if (fread(&age, sizeof(int), 1, file) != 1 ||
+            fread(name, sizeof(char), 50, file) != 50 ||
+            fread(surname, sizeof(char), 50, file) != 50 ||
+            fread(gender, sizeof(char), 10, file) != 10 ||
+            fread(group, sizeof(char), 50, file) != 50 ||
+            fread(&mathGrade, sizeof(int), 1, file) != 1 ||
+            fread(&physicGrade, sizeof(int), 1, file) != 1 ||
+            fread(&chemistryGrade, sizeof(int), 1, file) != 1) {
+            if (feof(file)) break;
+            perror("Failed to read data from binary file");
+            fclose(file);
+            return;
+        }
 
         Student* student = InitStudent(age, strdup(name), strdup(surname), strdup(gender), strdup(group), mathGrade, physicGrade, chemistryGrade);
+        if (!student) {
+            fprintf(stderr, "Failed to allocate memory for Student\n");
+            continue;
+        }
         l->append(l, student);
     }
-    fclose(file);
-    printf("Data successfully loaded from %s\n", filename);
+    if (fclose(file) != 0) {
+        perror("Failed to close file after reading");
+    } else {
+        printf("Data successfully loaded from %s\n", filename);
+    }
 }
